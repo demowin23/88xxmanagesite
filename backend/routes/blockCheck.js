@@ -26,7 +26,18 @@ router.post('/check/:websiteId', async (req, res) => {
     // Check qua từng proxy
     for (const proxy of proxies) {
       try {
-        const checkResult = await proxyChecker.checkWebsite(website.domain, proxy.proxy_url);
+        // Build proxy_url từ các trường riêng nếu chưa có
+        const proxyUrl = ProxyISP.buildProxyUrl(proxy);
+        if (!proxyUrl) {
+          results.push({
+            isp: proxy.isp_name,
+            status: 'ERROR',
+            errorMessage: 'Proxy URL cannot be built from provided fields'
+          });
+          continue;
+        }
+        
+        const checkResult = await proxyChecker.checkWebsite(website.domain, proxyUrl);
         
         // Lưu kết quả vào database
         await WebsiteBlockStatus.create({
@@ -118,7 +129,18 @@ router.post('/check-batch', async (req, res) => {
 
       for (const proxy of proxies) {
         try {
-          const checkResult = await proxyChecker.checkWebsite(website.domain, proxy.proxy_url);
+          // Build proxy_url từ các trường riêng nếu chưa có
+          const proxyUrl = ProxyISP.buildProxyUrl(proxy);
+          if (!proxyUrl) {
+            websiteResults.push({
+              isp: proxy.isp_name,
+              status: 'ERROR',
+              errorMessage: 'Proxy URL cannot be built from provided fields'
+            });
+            continue;
+          }
+          
+          const checkResult = await proxyChecker.checkWebsite(website.domain, proxyUrl);
           
           await WebsiteBlockStatus.create({
             website_id: website.id,

@@ -45,13 +45,16 @@ router.get('/:id', async (req, res) => {
 // Tạo proxy mới
 router.post('/', async (req, res) => {
   try {
-    const { isp_name, proxy_url, status } = req.body;
+    const { isp_name, ip, port, username, password, status } = req.body;
     
-    if (!isp_name || !proxy_url) {
-      return res.status(400).json({ success: false, error: 'ISP name and proxy URL are required' });
+    if (!isp_name || !ip || !port || !username || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'ISP name, IP, port, username, and password are required' 
+      });
     }
     
-    const proxy = await ProxyISP.create({ isp_name, proxy_url, status });
+    const proxy = await ProxyISP.create({ isp_name, ip, port, username, password, status });
     res.status(201).json({ success: true, data: proxy });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -61,8 +64,16 @@ router.post('/', async (req, res) => {
 // Cập nhật proxy
 router.put('/:id', async (req, res) => {
   try {
-    const { isp_name, proxy_url, status } = req.body;
-    const proxy = await ProxyISP.update(req.params.id, { isp_name, proxy_url, status });
+    const { isp_name, ip, port, username, password, status } = req.body;
+    
+    if (!isp_name || !ip || !port || !username || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'ISP name, IP, port, username, and password are required' 
+      });
+    }
+    
+    const proxy = await ProxyISP.update(req.params.id, { isp_name, ip, port, username, password, status });
     res.json({ success: true, data: proxy });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -87,10 +98,16 @@ router.post('/:id/test', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Proxy not found' });
     }
     
+    // Build proxy_url từ các trường riêng nếu chưa có
+    const proxyUrl = ProxyISP.buildProxyUrl(proxy);
+    if (!proxyUrl) {
+      return res.status(400).json({ success: false, error: 'Proxy URL cannot be built from provided fields' });
+    }
+    
     const { testDomain } = req.body;
     const domain = testDomain || 'google.com';
     
-    const result = await proxyChecker.checkWebsite(domain, proxy.proxy_url);
+    const result = await proxyChecker.checkWebsite(domain, proxyUrl);
     
     // Cập nhật last_check
     await ProxyISP.updateLastCheck(req.params.id);

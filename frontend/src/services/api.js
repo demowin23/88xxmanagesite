@@ -100,8 +100,8 @@ export default {
   },
 
   // Teams
-  getTeams() {
-    return api.get('/teams')
+  getTeams(url = '/teams') {
+    return api.get(url.startsWith('/') ? url : `/teams${url}`)
   },
   getTeam(id) {
     return api.get(`/teams/${id}`)

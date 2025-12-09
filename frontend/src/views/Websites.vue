@@ -30,16 +30,6 @@
           />
         </div>
         <div class="form-group" style="margin-bottom: 0">
-          <label>📊 Trạng thái</label>
-          <select v-model="filters.status" @change="applyFilters">
-            <option value="">Tất cả</option>
-            <option value="active">Hoạt động</option>
-            <option value="redirect">Redirect</option>
-            <option value="error">Lỗi</option>
-            <option value="blocked">Bị chặn</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom: 0">
           <label>👥 Team</label>
           <select v-model="filters.team_id" @change="applyFilters">
             <option value="">Tất cả</option>
@@ -74,8 +64,7 @@
               <th>Keywords</th>
               <th>Ranking</th>
               <th>Redirect Status</th>
-              <th>Trạng thái</th>
-              <th>Chặn (ISP)</th>
+              <th>Check chặn</th>
               <th>Thao tác</th>
             </tr>
           </thead>
@@ -178,28 +167,23 @@
                 </span>
               </td>
               <td>
-                <span
-                  v-if="website.status"
-                  :class="getStatusBadgeClass(website.status)"
-                >
-                  {{ website.status }}
-                </span>
-                <span v-else>-</span>
-              </td>
-              <td>
-                <span
+                <div
                   v-if="website.blockStatus && website.blockStatus.length > 0"
+                  style="display: flex; flex-wrap: wrap; gap: 5px"
                 >
                   <span
                     v-for="(block, idx) in website.blockStatus"
-                    :key="idx"
+                    :key="`${block.isp_name}-${idx}`"
                     :class="getBlockStatusClass(block.status)"
-                    style="margin-right: 5px"
+                    :title="getBlockStatusTooltip(block)"
+                    style="cursor: help; font-size: 12px"
                   >
-                    {{ block.isp_name }}
+                    {{ block.isp_name }}: {{ formatBlockStatus(block.status) }}
                   </span>
-                </span>
-                <span v-else>-</span>
+                </div>
+                <span v-else style="color: #999; font-size: 12px"
+                  >Chưa check</span
+                >
               </td>
               <td>
                 <button
@@ -289,18 +273,6 @@
                 </option>
               </select>
             </div>
-            <div
-              v-if="editingWebsite && editingWebsite.status"
-              class="form-group"
-            >
-              <label>Trạng thái</label>
-              <select v-model="form.status">
-                <option value="active">Hoạt động</option>
-                <option value="redirect">Redirect</option>
-                <option value="error">Lỗi</option>
-                <option value="blocked">Bị chặn</option>
-              </select>
-            </div>
           </div>
           <div class="form-group">
             <label>Từ khóa (Keyword)</label>
@@ -367,7 +339,6 @@ export default {
       },
       filters: {
         search: "",
-        status: "",
         team_id: "",
       },
       form: {
@@ -401,7 +372,6 @@ export default {
           limit: this.pagination.limit,
         };
         if (this.filters.search) params.search = this.filters.search;
-        if (this.filters.status) params.status = this.filters.status;
         if (this.filters.team_id) params.team_id = this.filters.team_id;
 
         const queryString = new URLSearchParams(params).toString();
@@ -478,7 +448,6 @@ export default {
     resetFilters() {
       this.filters = {
         search: "",
-        status: "",
         team_id: "",
       };
       this.loadWebsites();
@@ -618,16 +587,11 @@ export default {
       return "301 Redirect";
     },
     async checkBlock(websiteId) {
-      if (!confirm("Bạn có chắc muốn check chặn cho website này?")) {
-        return;
-      }
-
       try {
-        const response = await api.checkWebsiteBlock(websiteId);
-        alert("Check chặn hoàn tất!");
+        await api.checkWebsiteBlock(websiteId);
         this.loadWebsites();
       } catch (error) {
-        alert("Lỗi khi check chặn: " + error.message);
+        console.error("Lỗi khi check chặn:", error);
       }
     },
     editWebsite(website) {
@@ -639,10 +603,6 @@ export default {
         checkRankingAfterCreate: false,
         note: website.note || "",
       };
-      // Chỉ thêm status nếu đã có (sau khi check)
-      if (website.status) {
-        this.form.status = website.status;
-      }
     },
     async saveWebsite() {
       try {
@@ -697,8 +657,34 @@ export default {
         BLOCK_HTTP: "badge badge-danger",
         BLOCK_HTTPS: "badge badge-danger",
         BLOCK_UNKNOWN: "badge badge-warning",
+        ERROR: "badge badge-danger",
       };
-      return map[status] || "badge";
+      return map[status] || "badge badge-secondary";
+    },
+    formatBlockStatus(status) {
+      const map = {
+        OK: "OK",
+        BLOCK_DNS: "Chặn DNS",
+        BLOCK_HTTP: "Chặn HTTP",
+        BLOCK_HTTPS: "Chặn HTTPS",
+        BLOCK_UNKNOWN: "Chặn (?)",
+        ERROR: "Lỗi",
+      };
+      return map[status] || status;
+    },
+    getBlockStatusTooltip(block) {
+      let tooltip = `${block.isp_name}: ${block.status}`;
+      if (block.http_code) {
+        tooltip += ` (HTTP ${block.http_code})`;
+      }
+      if (block.error_message) {
+        tooltip += ` - ${block.error_message}`;
+      }
+      if (block.checked_at) {
+        const date = new Date(block.checked_at);
+        tooltip += ` - Check: ${date.toLocaleString("vi-VN")}`;
+      }
+      return tooltip;
     },
   },
 };

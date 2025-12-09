@@ -56,8 +56,20 @@ class Website {
 
     const result = await db.query(query, params);
     
+    // Load blockStatus cho tất cả websites cùng lúc (tối ưu hơn)
+    const websiteIds = result.rows.map(w => w.id);
+    const blockStatusMap = websiteIds.length > 0 
+      ? await Website.getLatestBlockStatusForWebsites(websiteIds)
+      : {};
+    
+    // Map blockStatus vào mỗi website
+    const websitesWithBlockStatus = result.rows.map(website => ({
+      ...website,
+      blockStatus: blockStatusMap[website.id] || []
+    }));
+    
     return {
-      data: result.rows,
+      data: websitesWithBlockStatus,
       pagination: {
         page,
         limit,
@@ -156,14 +168,41 @@ class Website {
 
   static async getLatestBlockStatus(websiteId) {
     const result = await db.query(
-      `SELECT DISTINCT ON (wbs.isp_name) wbs.*, pi.isp_name 
+      `SELECT DISTINCT ON (wbs.isp_name) wbs.*
        FROM website_block_status wbs
-       JOIN proxy_isp pi ON wbs.isp_name = pi.isp_name
        WHERE wbs.website_id = $1 
        ORDER BY wbs.isp_name, wbs.checked_at DESC`,
       [websiteId]
     );
     return result.rows;
+  }
+  
+  /**
+   * Lấy latest block status cho nhiều websites cùng lúc (tối ưu)
+   */
+  static async getLatestBlockStatusForWebsites(websiteIds) {
+    if (!websiteIds || websiteIds.length === 0) {
+      return [];
+    }
+    
+    const result = await db.query(
+      `SELECT DISTINCT ON (wbs.website_id, wbs.isp_name) wbs.*
+       FROM website_block_status wbs
+       WHERE wbs.website_id = ANY($1::int[])
+       ORDER BY wbs.website_id, wbs.isp_name, wbs.checked_at DESC`,
+      [websiteIds]
+    );
+    
+    // Group by website_id
+    const grouped = {};
+    result.rows.forEach(row => {
+      if (!grouped[row.website_id]) {
+        grouped[row.website_id] = [];
+      }
+      grouped[row.website_id].push(row);
+    });
+    
+    return grouped;
   }
 }
 

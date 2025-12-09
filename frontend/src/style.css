@@ -833,7 +833,7 @@ h3 {
   border-radius: 8px;
   padding: 10px 14px;
   position: absolute;
-  z-index: 1000;
+  z-index: 10000;
   bottom: 125%;
   left: 50%;
   transform: translateX(-50%);
@@ -869,6 +869,7 @@ h3 {
 /* Tooltip for badge */
 .badge.tooltip-wrapper {
   cursor: help;
+  position: relative;
 }
 
 .badge.tooltip-wrapper .tooltip-text {
@@ -877,6 +878,21 @@ h3 {
   padding: 8px 12px;
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 10000;
+}
+
+/* Tooltip trong table - hiển thị phía dưới để tránh bị ẩn dưới header */
+.table .tooltip-wrapper .tooltip-text {
+  bottom: auto;
+  top: 125%;
+  z-index: 10000;
+}
+
+.table .tooltip-wrapper .tooltip-text::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: #1f2937;
 }
 
 .badge.tooltip-wrapper .tooltip-text::after {

@@ -35,7 +35,14 @@ class Scheduler {
       for (const website of websites) {
         try {
           for (const proxy of proxies) {
-            const result = await proxyChecker.checkWebsite(website.domain, proxy.proxy_url);
+            // Build proxy_url từ các trường riêng nếu chưa có
+            const proxyUrl = ProxyISP.buildProxyUrl(proxy);
+            if (!proxyUrl) {
+              console.error(`Proxy ${proxy.id} (${proxy.isp_name}) cannot build URL`);
+              continue;
+            }
+            
+            const result = await proxyChecker.checkWebsite(website.domain, proxyUrl);
             
             await WebsiteBlockStatus.create({
               website_id: website.id,

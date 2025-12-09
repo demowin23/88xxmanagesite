@@ -271,16 +271,11 @@ export default {
       }
     },
     async checkBlock() {
-      if (!confirm("Bạn có chắc muốn check chặn cho website này?")) {
-        return;
-      }
-
       try {
         await api.checkWebsiteBlock(this.website.id);
-        alert("Check chặn hoàn tất!");
         this.loadWebsite();
       } catch (error) {
-        alert("Lỗi khi check chặn: " + error.message);
+        console.error("Lỗi khi check chặn:", error);
       }
     },
     async checkRanking() {

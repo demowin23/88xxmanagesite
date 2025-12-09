@@ -12,7 +12,8 @@
     "fix-status": "node scripts/fix-status-default.js",
     "drop-keyword-tables": "node scripts/drop-keyword-tables.js",
     "add-keyword-column": "node scripts/add-keyword-column.js",
-    "add-ranking-column": "node scripts/add-ranking-column.js"
+    "add-ranking-column": "node scripts/add-ranking-column.js",
+    "migrate-proxy-fields": "node scripts/migrate-proxy-fields.js"
   },
   "keywords": [
     "website",
@@ -32,7 +33,8 @@
     "https-proxy-agent": "^7.0.2",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "socks-proxy-agent": "^8.0.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
