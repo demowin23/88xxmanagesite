@@ -7,7 +7,11 @@
       </button>
     </div>
 
-    <div v-if="loading" class="loading">Đang tải...</div>
+    <div v-if="teams.length === 0 && !loading" style="text-align: center; padding: 40px;">
+      <p style="color: var(--text-secondary); margin-bottom: 20px;">Chưa có dữ liệu teams</p>
+      <button class="btn btn-primary" @click="loadTeams">📥 Tải danh sách Teams</button>
+    </div>
+    <div v-else-if="loading" class="loading">Đang tải...</div>
     <div v-else>
       <div class="card">
         <div
@@ -107,15 +111,25 @@
 
 <script>
 import api from "../services/api";
+import Pagination from "../components/Pagination.vue";
 
 export default {
   name: "Teams",
+  components: {
+    Pagination,
+  },
   data() {
     return {
-      loading: true,
+      loading: false,
       teams: [],
       showAddModal: false,
       editingTeam: null,
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 1,
+      },
       form: {
         name: "",
         description: "",
@@ -123,7 +137,7 @@ export default {
     };
   },
   mounted() {
-    this.loadTeams();
+    // Không call API khi mounted, chỉ load khi cần
   },
   methods: {
     async loadTeams() {
