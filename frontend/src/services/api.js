@@ -8,9 +8,13 @@ const api = axios.create({
   }
 })
 
-// Request interceptor
+// Request interceptor - thêm token vào header
 api.interceptors.request.use(
   (config) => {
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   (error) => {
@@ -18,12 +22,19 @@ api.interceptors.request.use(
   }
 )
 
-// Response interceptor
+// Response interceptor - handle 401 unauthorized
 api.interceptors.response.use(
   (response) => {
     return response.data
   },
   (error) => {
+    // Nếu 401, xóa token và redirect về login
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('auth_user')
+      // Redirect sẽ được xử lý trong router guard
+      window.location.href = '/login'
+    }
     const message = error.response?.data?.error || error.message || 'Có lỗi xảy ra'
     return Promise.reject(new Error(message))
   }
@@ -114,6 +125,14 @@ export default {
   },
   deleteTeam(id) {
     return api.delete(`/teams/${id}`)
+  },
+
+  // Auth
+  login(username, password) {
+    return api.post('/auth/login', { username, password })
+  },
+  getCurrentUser() {
+    return api.get('/auth/me')
   }
 }
 

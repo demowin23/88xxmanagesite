@@ -13,7 +13,8 @@
     "drop-keyword-tables": "node scripts/drop-keyword-tables.js",
     "add-keyword-column": "node scripts/add-keyword-column.js",
     "add-ranking-column": "node scripts/add-ranking-column.js",
-    "migrate-proxy-fields": "node scripts/migrate-proxy-fields.js"
+    "migrate-proxy-fields": "node scripts/migrate-proxy-fields.js",
+    "migrate-auth": "node scripts/migrate-auth.js"
   },
   "keywords": [
     "website",

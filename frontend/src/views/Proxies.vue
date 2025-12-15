@@ -138,12 +138,34 @@
           </div>
           <div class="form-group">
             <label>Password *</label>
-            <input
-              type="password"
-              v-model="form.password"
-              placeholder="Nhập password"
-              required
-            />
+            <div style="position: relative">
+              <input
+                :type="showPassword ? 'text' : 'password'"
+                v-model="form.password"
+                placeholder="Nhập password"
+                required
+                style="padding-right: 40px"
+              />
+              <button
+                type="button"
+                @click="showPassword = !showPassword"
+                style="
+                  position: absolute;
+                  right: 10px;
+                  top: 50%;
+                  transform: translateY(-50%);
+                  background: none;
+                  border: none;
+                  cursor: pointer;
+                  padding: 5px;
+                  color: var(--text-secondary);
+                "
+                :title="showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+              >
+                <span v-if="showPassword">👁️</span>
+                <span v-else>👁️‍🗨️</span>
+              </button>
+            </div>
           </div>
           <div class="form-group">
             <label>Trạng thái</label>
@@ -193,6 +215,7 @@ export default {
         password: "",
         status: "active",
       },
+      showPassword: false,
     };
   },
   mounted() {

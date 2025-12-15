@@ -29,7 +29,7 @@
             @input="applyFilters"
           />
         </div>
-        <div class="form-group" style="margin-bottom: 0">
+        <div v-if="isAdmin" class="form-group" style="margin-bottom: 0">
           <label>👥 Team</label>
           <select v-model="filters.team_id" @change="applyFilters">
             <option value="">Tất cả</option>
@@ -266,12 +266,23 @@
           <div class="flex-between">
             <div class="form-group">
               <label>Team</label>
-              <select v-model="form.team_id">
+              <select v-model="form.team_id" :disabled="!isAdmin">
                 <option value="">Chọn team</option>
                 <option v-for="team in teams" :key="team.id" :value="team.id">
                   {{ team.name }}
                 </option>
               </select>
+              <small
+                v-if="!isAdmin"
+                style="
+                  color: var(--text-secondary);
+                  font-size: 12px;
+                  display: block;
+                  margin-top: 5px;
+                "
+              >
+                Team user chỉ có thể tạo website cho team của mình
+              </small>
             </div>
           </div>
           <div class="form-group">
@@ -317,12 +328,18 @@
 
 <script>
 import api from "../services/api";
+import auth from "../services/auth";
 import Pagination from "../components/Pagination.vue";
 
 export default {
   name: "Websites",
   components: {
     Pagination,
+  },
+  computed: {
+    isAdmin() {
+      return auth.isAdmin();
+    },
   },
   data() {
     return {
@@ -372,7 +389,9 @@ export default {
           limit: this.pagination.limit,
         };
         if (this.filters.search) params.search = this.filters.search;
-        if (this.filters.team_id) params.team_id = this.filters.team_id;
+        // Team user không được filter team khác, chỉ xem team của mình
+        if (this.isAdmin && this.filters.team_id)
+          params.team_id = this.filters.team_id;
 
         const queryString = new URLSearchParams(params).toString();
         const url = `/websites?${queryString}`;

@@ -4,12 +4,20 @@ const Website = require('../models/Website');
 const WebsiteBlockStatus = require('../models/WebsiteBlockStatus');
 const serpApiService = require('../services/serpApiService');
 const axios = require('axios');
+const { authenticate, requireTeamOrAdmin } = require('../middleware/auth');
 
 // Lấy danh sách website với filter
-router.get('/', async (req, res) => {
+router.get('/', authenticate, requireTeamOrAdmin, async (req, res) => {
   try {
     const { search, status, team_id, has_keyword, page, limit } = req.query;
     const filters = { search, status, team_id, page, limit };
+    
+    // Nếu là team user, chỉ được xem website của team mình
+    if (req.user.role === 'team') {
+      filters.team_id = req.user.team_id;
+    }
+    // Admin có thể filter theo team_id nếu muốn, nhưng không bắt buộc
+    
     if (has_keyword !== undefined) {
       filters.has_keyword = has_keyword === 'true' || has_keyword === '1';
     }
@@ -25,11 +33,16 @@ router.get('/', async (req, res) => {
 });
 
 // Lấy chi tiết website
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticate, requireTeamOrAdmin, async (req, res) => {
   try {
     const website = await Website.getById(req.params.id);
     if (!website) {
       return res.status(404).json({ success: false, error: 'Website not found' });
+    }
+    
+    // Nếu là team user, chỉ được xem website của team mình
+    if (req.user.role === 'team' && website.team_id !== req.user.team_id) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
     }
     
     // Lấy block status mới nhất
@@ -48,7 +61,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Tạo website mới
-router.post('/', async (req, res) => {
+router.post('/', authenticate, requireTeamOrAdmin, async (req, res) => {
   try {
     const { domain, team_id, keyword, note, checkRankingAfterCreate } = req.body;
     
@@ -56,8 +69,11 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Domain is required' });
     }
     
+    // Nếu là team user, chỉ được tạo website cho team mình
+    const finalTeamId = req.user.role === 'team' ? req.user.team_id : team_id;
+    
     // Không set status khi tạo mới, chỉ set sau khi check
-    const website = await Website.create({ domain, team_id, keyword: keyword?.trim() || null, status: null, note });
+    const website = await Website.create({ domain, team_id: finalTeamId, keyword: keyword?.trim() || null, status: null, note });
     
     // Lấy website đầy đủ thông tin sau khi tạo (bao gồm team_name, keyword, etc.)
     const fullWebsite = await Website.getById(website.id);
@@ -108,13 +124,27 @@ router.post('/', async (req, res) => {
 });
 
 // Cập nhật website
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, requireTeamOrAdmin, async (req, res) => {
   try {
+    // Kiểm tra website có tồn tại và quyền truy cập
+    const existingWebsite = await Website.getById(req.params.id);
+    if (!existingWebsite) {
+      return res.status(404).json({ success: false, error: 'Website not found' });
+    }
+    
+    // Nếu là team user, chỉ được sửa website của team mình
+    if (req.user.role === 'team' && existingWebsite.team_id !== req.user.team_id) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
     const { domain, team_id, keyword, status, note } = req.body;
+    
+    // Nếu là team user, không được đổi team_id
+    const finalTeamId = req.user.role === 'team' ? req.user.team_id : team_id;
     
     const website = await Website.update(req.params.id, { 
       domain, 
-      team_id, 
+      team_id: finalTeamId, 
       keyword: keyword?.trim() || null, 
       status, 
       note 
@@ -126,8 +156,19 @@ router.put('/:id', async (req, res) => {
 });
 
 // Xóa website
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, requireTeamOrAdmin, async (req, res) => {
   try {
+    // Kiểm tra website có tồn tại và quyền truy cập
+    const website = await Website.getById(req.params.id);
+    if (!website) {
+      return res.status(404).json({ success: false, error: 'Website not found' });
+    }
+    
+    // Nếu là team user, chỉ được xóa website của team mình
+    if (req.user.role === 'team' && website.team_id !== req.user.team_id) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
     await Website.delete(req.params.id);
     res.json({ success: true, message: 'Website deleted' });
   } catch (error) {
@@ -136,8 +177,18 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Lấy lịch sử block status
-router.get('/:id/block-status', async (req, res) => {
+router.get('/:id/block-status', authenticate, requireTeamOrAdmin, async (req, res) => {
   try {
+    // Kiểm tra quyền truy cập
+    const website = await Website.getById(req.params.id);
+    if (!website) {
+      return res.status(404).json({ success: false, error: 'Website not found' });
+    }
+    
+    if (req.user.role === 'team' && website.team_id !== req.user.team_id) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
     const history = await WebsiteBlockStatus.getByWebsite(req.params.id);
     res.json({ success: true, data: history });
   } catch (error) {
@@ -146,11 +197,16 @@ router.get('/:id/block-status', async (req, res) => {
 });
 
 // Check redirect của website (301, 302, etc.)
-router.get('/:id/check-redirect', async (req, res) => {
+router.get('/:id/check-redirect', authenticate, requireTeamOrAdmin, async (req, res) => {
   try {
     const website = await Website.getById(req.params.id);
     if (!website) {
       return res.status(404).json({ success: false, error: 'Website not found' });
+    }
+    
+    // Kiểm tra quyền truy cập
+    if (req.user.role === 'team' && website.team_id !== req.user.team_id) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
     const domain = website.domain;
@@ -231,11 +287,16 @@ router.get('/:id/check-redirect', async (req, res) => {
 });
 
 // Check ranking cho keyword của website
-router.post('/:id/check-ranking', async (req, res) => {
+router.post('/:id/check-ranking', authenticate, requireTeamOrAdmin, async (req, res) => {
   try {
     const website = await Website.getById(req.params.id);
     if (!website) {
       return res.status(404).json({ success: false, error: 'Website not found' });
+    }
+    
+    // Kiểm tra quyền truy cập
+    if (req.user.role === 'team' && website.team_id !== req.user.team_id) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
     if (!website.keyword || !website.keyword.trim()) {
